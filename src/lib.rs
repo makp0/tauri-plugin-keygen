@@ -86,7 +86,7 @@ impl Builder {
                 let app_version = app.package_info().version.to_string();
 
                 // init machine
-                let machine = Machine::new(app_name, app_version);
+                let machine = Machine::new(app_name, app_version, app.app_handle());
 
                 // init keygen client
                 let keygen_client = KeygenClient::new(

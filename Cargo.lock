@@ -3602,6 +3602,7 @@ dependencies = [
  "tauri-plugin-os",
  "thiserror",
  "tokio",
+ "uuid",
  "whoami",
 ]
 

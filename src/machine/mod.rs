@@ -32,6 +32,12 @@ static ENGINE_NAME: &str = "WebKit";
 #[cfg(target_os = "windows")]
 static ENGINE_NAME: &str = "WebView2";
 
+#[cfg(target_os = "ios")]
+static ENGINE_NAME: &str = "WebKit";
+
+#[cfg(target_os = "android")]
+static ENGINE_NAME: &str = "WebView";
+
 #[derive(Debug)]
 pub struct Machine {
     pub fingerprint: String,
@@ -48,8 +54,12 @@ struct MachineFile {
 }
 
 impl Machine {
-    pub(crate) fn new(app_name: String, app_version: String) -> Self {
-        let fingerprint = machine_uid::get().unwrap_or("".into());
+    pub(crate) fn new<R: Runtime>(
+        app_name: String,
+        app_version: String,
+        app: &AppHandle<R>,
+    ) -> Self {
+        let fingerprint = Self::resolve_fingerprint(app).unwrap_or_default();
         let name = whoami::devicename();
 
         // platform
@@ -73,6 +83,39 @@ impl Machine {
             platform,
             user_agent,
         }
+    }
+
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    fn resolve_fingerprint<R: Runtime>(_app: &AppHandle<R>) -> Result<String> {
+        machine_uid::get().map_err(|e| Error::ParseErr(format!("machine-uid: {e}")))
+    }
+
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    fn resolve_fingerprint<R: Runtime>(app: &AppHandle<R>) -> Result<String> {
+        let path = Self::fingerprint_path(app)?;
+        if path.exists() {
+            let id = fs::read_to_string(&path)?;
+            let id = id.trim().to_string();
+            if !id.is_empty() {
+                return Ok(id);
+            }
+        }
+        let id = uuid::Uuid::new_v4().to_string();
+        let mut f = File::create(&path)?;
+        f.write_all(id.as_bytes())?;
+        Ok(id)
+    }
+
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    fn fingerprint_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
+        let Ok(data_dir) = app.path().app_data_dir() else {
+            return Err(Error::PathErr("Can't resolve app data dir".into()));
+        };
+        let cache_dir = data_dir.join("keygen");
+        if !cache_dir.exists() {
+            fs::create_dir_all(&cache_dir)?;
+        }
+        Ok(cache_dir.join("fingerprint"))
     }
 
     pub(crate) async fn activate(
