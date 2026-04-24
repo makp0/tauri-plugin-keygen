@@ -127,9 +127,31 @@ pub async fn checkout_machine<R: Runtime>(
 pub async fn reset_license<R: Runtime>(
     app: AppHandle<R>,
     _window: Window<R>,
+    machine: State<'_, Mutex<Machine>>,
+    client: State<'_, Mutex<KeygenClient>>,
     licensed_state: State<'_, Mutex<LicensedState>>,
+    remote: Option<bool>,
 ) -> Result<()> {
     let mut licensed_state = licensed_state.lock().await;
+
+    // Opt-in: release the server-side machine slot before wiping local
+    // state. Idempotent — silently no-ops if there's nothing to delete.
+    // Failures here are logged but do NOT block local reset; otherwise an
+    // offline deactivation would be impossible.
+    if remote.unwrap_or(false) {
+        let key = licensed_state
+            .get_license()
+            .map(|l| l.key)
+            .or_else(|| LicensedState::get_cached_license_key(&app).ok().flatten());
+
+        if let Some(key) = key {
+            let machine = machine.lock().await;
+            let client = client.lock().await;
+            if let Err(err) = machine.deactivate_remote(&key, &client).await {
+                dbg!(&err);
+            }
+        }
+    }
 
     // reset state
     licensed_state.update(None);

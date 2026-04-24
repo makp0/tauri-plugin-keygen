@@ -112,9 +112,22 @@ export async function validateCheckoutKey({
   }
 }
 
-export async function resetLicense(): Promise<void> {
+/**
+ * Reset the local license state.
+ *
+ * @param remote When `true`, the plugin also releases the current machine
+ *   slot on Keygen (DELETE machine by fingerprint) so a 1-of-1 license can
+ *   be re-activated from a different device. Defaults to `false` (local-
+ *   only) to preserve v2 behavior. Remote failures are swallowed so offline
+ *   deactivation still works.
+ */
+export async function resetLicense(
+  opts: { remote?: boolean } = {},
+): Promise<void> {
   try {
-    return await invoke("plugin:keygen|reset_license");
+    return await invoke("plugin:keygen|reset_license", {
+      remote: opts.remote ?? false,
+    });
   } catch (e) {
     if (isKeygenError(e)) {
       throw new KeygenError({ code: e.code, detail: e.detail });

@@ -93,6 +93,14 @@ impl KeygenClient {
         self.http_client.request(Method::POST, url)
     }
 
+    pub(crate) fn get(&self, url: String) -> RequestBuilder {
+        self.http_client.request(Method::GET, url)
+    }
+
+    pub(crate) fn delete(&self, url: String) -> RequestBuilder {
+        self.http_client.request(Method::DELETE, url)
+    }
+
     pub(crate) fn build_url(&self, path: String, params: Option<Vec<(&str, &str)>>) -> Result<Url> {
         // get base url
         let base_url = self.get_base_url()?;

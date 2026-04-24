@@ -257,6 +257,84 @@ impl Machine {
         }
     }
 
+    /// Release the machine slot on Keygen by deleting the current machine
+    /// registration (matched by this `Machine`'s fingerprint) under the
+    /// given license. Returns `true` if a machine was deleted, `false`
+    /// when none was found (idempotent — safe to call if the slot is
+    /// already free).
+    pub(crate) async fn deactivate_remote(
+        &self,
+        license_key: &str,
+        client: &KeygenClient,
+    ) -> Result<bool> {
+        if self.fingerprint.is_empty() {
+            return Ok(false);
+        }
+
+        #[derive(Deserialize)]
+        struct Attrs {
+            fingerprint: String,
+        }
+        #[derive(Deserialize)]
+        struct Item {
+            id: String,
+            attributes: Attrs,
+        }
+        #[derive(Deserialize)]
+        struct List {
+            data: Vec<Item>,
+        }
+
+        // list machines registered under this license
+        let list_url = client.build_url(format!("licenses/{}/machines", license_key), None)?;
+        let resp = client
+            .get(list_url.to_string())
+            .timeout(Duration::from_secs(30))
+            .header("Accept", "application/vnd.api+json")
+            .header("Authorization", format!("License {}", license_key))
+            .send()
+            .await?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(Error::ParseErr(format!(
+                "list machines failed: {status} {body}"
+            )));
+        }
+        let list: List = resp
+            .json()
+            .await
+            .map_err(|_| Error::ParseErr("Failed deserializing machines list".into()))?;
+
+        let Some(item) = list
+            .data
+            .into_iter()
+            .find(|m| m.attributes.fingerprint == self.fingerprint)
+        else {
+            return Ok(false);
+        };
+
+        let del_url = client.build_url(format!("machines/{}", item.id), None)?;
+        let del = client
+            .delete(del_url.to_string())
+            .timeout(Duration::from_secs(30))
+            .header("Accept", "application/vnd.api+json")
+            .header("Authorization", format!("License {}", license_key))
+            .send()
+            .await?;
+
+        let code = del.status();
+        if !code.is_success() && code.as_u16() != 404 {
+            let body = del.text().await.unwrap_or_default();
+            return Err(Error::ParseErr(format!(
+                "delete machine failed: {code} {body}"
+            )));
+        }
+
+        Ok(true)
+    }
+
     pub(crate) fn load_machine_file<R: Runtime>(
         &self,
         license_key: &String,
