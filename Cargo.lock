@@ -1716,15 +1716,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keyring-core"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4334ce6f52997b27cdf93ff93e9b7dc585ddcb377006154fb2f6a695c40c53d6"
-dependencies = [
- "log",
-]
-
-[[package]]
 name = "kuchikiki"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3591,7 +3582,6 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "hex",
- "keyring-core",
  "reqwest",
  "serde",
  "serde_json",
@@ -3601,7 +3591,6 @@ dependencies = [
  "tauri-plugin-os",
  "thiserror",
  "tokio",
- "uuid",
  "whoami",
 ]
 

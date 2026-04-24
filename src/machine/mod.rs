@@ -46,12 +46,6 @@ pub struct Machine {
     pub user_agent: String,
 }
 
-/// Keyring service name used to persist the per-account machine fingerprint.
-/// Kept stable so consumers can read the same value from application code
-/// without re-generating a new UUID.
-const FINGERPRINT_KEYRING_SERVICE: &str = "tauri-plugin-keygen";
-const FINGERPRINT_KEYRING_ACCOUNT: &str = "fingerprint";
-
 #[derive(Deserialize, Serialize, Debug)]
 struct MachineFile {
     enc: String,
@@ -60,12 +54,13 @@ struct MachineFile {
 }
 
 impl Machine {
-    pub(crate) fn new<R: Runtime>(
-        app_name: String,
-        app_version: String,
-        app: &AppHandle<R>,
-    ) -> Self {
-        let fingerprint = Self::resolve_fingerprint(app).unwrap_or_default();
+    /// Build a `Machine` using a fingerprint supplied by the application.
+    ///
+    /// The plugin no longer resolves or persists the fingerprint itself — the
+    /// consuming app is responsible for generating and storing a stable
+    /// per-device identifier (e.g. via the OS keychain) and passing it in at
+    /// plugin init time via `Builder::fingerprint`.
+    pub(crate) fn new(app_name: String, app_version: String, fingerprint: String) -> Self {
         let name = whoami::devicename();
 
         // platform
@@ -89,39 +84,6 @@ impl Machine {
             platform,
             user_agent,
         }
-    }
-
-    /// Resolve (or generate) a stable per-device fingerprint, persisted in the
-    /// OS keychain via `keyring-core`. Same strategy on every platform:
-    ///
-    /// - Read the `tauri-plugin-keygen` / `fingerprint` entry from the keychain.
-    /// - If missing, mint a random v4 UUID, write it back, return it.
-    ///
-    /// The caller (application) must have registered a `keyring-core` backend
-    /// before the plugin's `setup` runs (e.g. via `tauri-plugin-keyring`).
-    pub(crate) fn resolve_fingerprint<R: Runtime>(_app: &AppHandle<R>) -> Result<String> {
-        let entry = keyring_core::Entry::new(
-            FINGERPRINT_KEYRING_SERVICE,
-            FINGERPRINT_KEYRING_ACCOUNT,
-        )
-        .map_err(|e| Error::ParseErr(format!("keyring entry: {e}")))?;
-
-        match entry.get_password() {
-            Ok(id) => {
-                let id = id.trim().to_string();
-                if !id.is_empty() {
-                    return Ok(id);
-                }
-            }
-            Err(keyring_core::Error::NoEntry) => {}
-            Err(e) => return Err(Error::ParseErr(format!("keyring read: {e}"))),
-        }
-
-        let id = uuid::Uuid::new_v4().to_string();
-        entry
-            .set_password(&id)
-            .map_err(|e| Error::ParseErr(format!("keyring write: {e}")))?;
-        Ok(id)
     }
 
     pub(crate) async fn activate(

@@ -24,6 +24,10 @@ pub struct Builder {
     pub verify_key: String,
     pub version_header: Option<String>,
     pub cache_lifetime: i64, // in minutes
+    /// Device fingerprint supplied by the consuming application. The plugin
+    /// no longer generates or persists its own — the app must resolve one
+    /// (e.g. via OS keychain) and inject it here.
+    pub fingerprint: Option<String>,
 }
 
 impl Builder {
@@ -35,6 +39,7 @@ impl Builder {
             verify_key: verify_key.into(),
             version_header: None,
             cache_lifetime: 240,
+            fingerprint: None,
         }
     }
 
@@ -49,7 +54,13 @@ impl Builder {
             verify_key: verify_key.into(),
             version_header: None,
             cache_lifetime: 240,
+            fingerprint: None,
         }
+    }
+
+    pub fn fingerprint(mut self, fingerprint: impl Into<String>) -> Self {
+        self.fingerprint = Some(fingerprint.into());
+        self
     }
 
     pub fn api_url(mut self, api_url: impl Into<String>) -> Self {
@@ -86,8 +97,16 @@ impl Builder {
                 let app_name = app.package_info().name.clone();
                 let app_version = app.package_info().version.to_string();
 
+                // fingerprint must be supplied by the consuming app
+                let fingerprint = self.fingerprint.clone().ok_or_else(|| {
+                    Box::<dyn std::error::Error>::from(
+                        "tauri-plugin-keygen: Builder::fingerprint was not set — the host app \
+                         must resolve and inject a device fingerprint before plugin init",
+                    )
+                })?;
+
                 // init machine
-                let machine = Machine::new(app_name, app_version, app.app_handle());
+                let machine = Machine::new(app_name, app_version, fingerprint);
 
                 // init keygen client
                 let keygen_client = KeygenClient::new(
