@@ -4,6 +4,8 @@ mod err;
 mod licensed;
 mod machine;
 
+use std::sync::Arc;
+
 use client::KeygenClient;
 use err::Error;
 use licensed::*;
@@ -16,6 +18,9 @@ use tokio::sync::Mutex;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+pub type FingerprintResolver =
+    Arc<dyn Fn() -> std::result::Result<String, String> + Send + Sync + 'static>;
+
 #[derive(Clone)]
 pub struct Builder {
     pub custom_domain: Option<String>,
@@ -24,10 +29,12 @@ pub struct Builder {
     pub verify_key: String,
     pub version_header: Option<String>,
     pub cache_lifetime: i64, // in minutes
-    /// Device fingerprint supplied by the consuming application. The plugin
-    /// no longer generates or persists its own — the app must resolve one
-    /// (e.g. via OS keychain) and inject it here.
-    pub fingerprint: Option<String>,
+    /// Resolver invoked during plugin setup to obtain the device fingerprint.
+    /// The plugin no longer generates or persists its own — the consuming
+    /// application is responsible (e.g. via OS keychain). Using a closure
+    /// lets the app defer resolution until after its own keychain backend
+    /// is registered.
+    pub fingerprint: Option<FingerprintResolver>,
 }
 
 impl Builder {
@@ -58,8 +65,11 @@ impl Builder {
         }
     }
 
-    pub fn fingerprint(mut self, fingerprint: impl Into<String>) -> Self {
-        self.fingerprint = Some(fingerprint.into());
+    pub fn fingerprint<F>(mut self, resolver: F) -> Self
+    where
+        F: Fn() -> std::result::Result<String, String> + Send + Sync + 'static,
+    {
+        self.fingerprint = Some(Arc::new(resolver));
         self
     }
 
@@ -98,11 +108,16 @@ impl Builder {
                 let app_version = app.package_info().version.to_string();
 
                 // fingerprint must be supplied by the consuming app
-                let fingerprint = self.fingerprint.clone().ok_or_else(|| {
+                let resolver = self.fingerprint.clone().ok_or_else(|| {
                     Box::<dyn std::error::Error>::from(
                         "tauri-plugin-keygen: Builder::fingerprint was not set — the host app \
-                         must resolve and inject a device fingerprint before plugin init",
+                         must supply a fingerprint resolver before plugin init",
                     )
+                })?;
+                let fingerprint = resolver().map_err(|e| {
+                    Box::<dyn std::error::Error>::from(format!(
+                        "tauri-plugin-keygen: fingerprint resolver failed: {e}"
+                    ))
                 })?;
 
                 // init machine
