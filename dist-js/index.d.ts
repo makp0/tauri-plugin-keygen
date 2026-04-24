@@ -26,5 +26,16 @@ export declare function validateCheckoutKey({ key, entitlements, ttlSeconds, ttl
     ttlSeconds?: number;
     ttlForever?: boolean;
 }): Promise<KeygenLicense>;
-export declare function resetLicense(): Promise<void>;
+/**
+ * Reset the local license state.
+ *
+ * @param remote When `true`, the plugin also releases the current machine
+ *   slot on Keygen (DELETE machine by fingerprint) so a 1-of-1 license can
+ *   be re-activated from a different device. Defaults to `false` (local-
+ *   only) to preserve v2 behavior. Remote failures are swallowed so offline
+ *   deactivation still works.
+ */
+export declare function resetLicense(opts?: {
+    remote?: boolean;
+}): Promise<void>;
 export declare function resetLicenseKey(): Promise<void>;
