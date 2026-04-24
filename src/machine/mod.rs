@@ -23,10 +23,12 @@ use std::{
 use tauri::{webview_version, AppHandle, Manager, Runtime};
 use types::{MachineFileRes, MachineLicense};
 
-#[cfg(target_os = "linux")]
-static ENGINE_NAME: &str = "WebKit";
-
-#[cfg(target_os = "macos")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android"
+))]
 static ENGINE_NAME: &str = "WebKit";
 
 #[cfg(target_os = "windows")]

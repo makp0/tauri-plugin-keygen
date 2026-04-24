@@ -121,7 +121,15 @@ impl Builder {
                             "tauri-plugin-keygen: fingerprint resolver failed: {e}"
                         ))
                     })?,
+                    #[cfg(not(any(target_os = "ios", target_os = "android")))]
                     None => machine_uid::get().unwrap_or_default(),
+                    #[cfg(any(target_os = "ios", target_os = "android"))]
+                    None => {
+                        return Err(Box::<dyn std::error::Error>::from(
+                            "tauri-plugin-keygen: a fingerprint resolver is required on iOS/Android; \
+                             call Builder::fingerprint(...) before Builder::build().",
+                        ));
+                    }
                 };
 
                 // init machine
