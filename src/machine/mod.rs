@@ -48,8 +48,10 @@ struct MachineFile {
 }
 
 impl Machine {
-    pub(crate) fn new(app_name: String, app_version: String) -> Self {
-        let fingerprint = machine_uid::get().unwrap_or("".into());
+    /// Build a `Machine` using a fingerprint supplied by the caller. The
+    /// plugin's `Builder` resolves a value (either from a caller-supplied
+    /// resolver or the default `machine_uid`-based one) and passes it in.
+    pub(crate) fn new(app_name: String, app_version: String, fingerprint: String) -> Self {
         let name = whoami::devicename();
 
         // platform

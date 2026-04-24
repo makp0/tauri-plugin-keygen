@@ -4,6 +4,8 @@ mod err;
 mod licensed;
 mod machine;
 
+use std::sync::Arc;
+
 use client::KeygenClient;
 use err::Error;
 use licensed::*;
@@ -16,6 +18,11 @@ use tokio::sync::Mutex;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Closure type used to resolve a device fingerprint at plugin setup time.
+/// See [`Builder::fingerprint`].
+pub type FingerprintResolver =
+    Arc<dyn Fn() -> std::result::Result<String, String> + Send + Sync + 'static>;
+
 #[derive(Clone)]
 pub struct Builder {
     pub custom_domain: Option<String>,
@@ -24,6 +31,10 @@ pub struct Builder {
     pub verify_key: String,
     pub version_header: Option<String>,
     pub cache_lifetime: i64, // in minutes
+    /// Optional caller-provided fingerprint resolver. When unset the plugin
+    /// falls back to `machine_uid` (desktop-only). Supplying a resolver is
+    /// required for mobile targets where `machine_uid` is unavailable.
+    pub fingerprint: Option<FingerprintResolver>,
 }
 
 impl Builder {
@@ -35,6 +46,7 @@ impl Builder {
             verify_key: verify_key.into(),
             version_header: None,
             cache_lifetime: 240,
+            fingerprint: None,
         }
     }
 
@@ -49,7 +61,23 @@ impl Builder {
             verify_key: verify_key.into(),
             version_header: None,
             cache_lifetime: 240,
+            fingerprint: None,
         }
+    }
+
+    /// Supply a closure that returns the device fingerprint. Invoked once
+    /// during plugin setup, so it can depend on other plugins (e.g. a
+    /// keychain backend) that are registered beforehand.
+    ///
+    /// When this is **not** called the plugin falls back to `machine_uid`,
+    /// which only works on desktop targets (Linux/macOS/Windows). Mobile
+    /// callers must supply a resolver.
+    pub fn fingerprint<F>(mut self, resolver: F) -> Self
+    where
+        F: Fn() -> std::result::Result<String, String> + Send + Sync + 'static,
+    {
+        self.fingerprint = Some(Arc::new(resolver));
+        self
     }
 
     pub fn api_url(mut self, api_url: impl Into<String>) -> Self {
@@ -85,8 +113,19 @@ impl Builder {
                 let app_name = app.package_info().name.clone();
                 let app_version = app.package_info().version.to_string();
 
+                // Resolve fingerprint: caller-supplied closure takes priority;
+                // otherwise fall back to `machine_uid` (desktop-only).
+                let fingerprint = match &self.fingerprint {
+                    Some(resolver) => resolver().map_err(|e| {
+                        Box::<dyn std::error::Error>::from(format!(
+                            "tauri-plugin-keygen: fingerprint resolver failed: {e}"
+                        ))
+                    })?,
+                    None => machine_uid::get().unwrap_or_default(),
+                };
+
                 // init machine
-                let machine = Machine::new(app_name, app_version);
+                let machine = Machine::new(app_name, app_version, fingerprint);
 
                 // init keygen client
                 let keygen_client = KeygenClient::new(
