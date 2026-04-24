@@ -131,3 +131,11 @@ export async function resetLicenseKey(): Promise<void> {
     throwError(e);
   }
 }
+
+export async function getFingerprint(): Promise<string> {
+  try {
+    return (await invoke("plugin:keygen|get_fingerprint")) as string;
+  } catch (e) {
+    throwError(e);
+  }
+}

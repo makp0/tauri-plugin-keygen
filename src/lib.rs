@@ -79,6 +79,7 @@ impl Builder {
                 commands::checkout_machine,
                 commands::reset_license,
                 commands::reset_license_key,
+                commands::get_fingerprint,
             ])
             .setup(move |app, _api| {
                 // get app info

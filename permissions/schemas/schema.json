@@ -315,6 +315,16 @@
           "const": "deny-checkout-machine"
         },
         {
+          "description": "Enables the get_fingerprint command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-fingerprint"
+        },
+        {
+          "description": "Denies the get_fingerprint command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-fingerprint"
+        },
+        {
           "description": "Enables the get_license command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-license"

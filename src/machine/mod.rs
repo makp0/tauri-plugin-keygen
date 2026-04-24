@@ -46,6 +46,12 @@ pub struct Machine {
     pub user_agent: String,
 }
 
+/// Keyring service name used to persist the per-account machine fingerprint.
+/// Kept stable so consumers can read the same value from application code
+/// without re-generating a new UUID.
+const FINGERPRINT_KEYRING_SERVICE: &str = "tauri-plugin-keygen";
+const FINGERPRINT_KEYRING_ACCOUNT: &str = "fingerprint";
+
 #[derive(Deserialize, Serialize, Debug)]
 struct MachineFile {
     enc: String,
@@ -85,37 +91,37 @@ impl Machine {
         }
     }
 
-    #[cfg(not(any(target_os = "ios", target_os = "android")))]
-    fn resolve_fingerprint<R: Runtime>(_app: &AppHandle<R>) -> Result<String> {
-        machine_uid::get().map_err(|e| Error::ParseErr(format!("machine-uid: {e}")))
-    }
+    /// Resolve (or generate) a stable per-device fingerprint, persisted in the
+    /// OS keychain via `keyring-core`. Same strategy on every platform:
+    ///
+    /// - Read the `tauri-plugin-keygen` / `fingerprint` entry from the keychain.
+    /// - If missing, mint a random v4 UUID, write it back, return it.
+    ///
+    /// The caller (application) must have registered a `keyring-core` backend
+    /// before the plugin's `setup` runs (e.g. via `tauri-plugin-keyring`).
+    pub(crate) fn resolve_fingerprint<R: Runtime>(_app: &AppHandle<R>) -> Result<String> {
+        let entry = keyring_core::Entry::new(
+            FINGERPRINT_KEYRING_SERVICE,
+            FINGERPRINT_KEYRING_ACCOUNT,
+        )
+        .map_err(|e| Error::ParseErr(format!("keyring entry: {e}")))?;
 
-    #[cfg(any(target_os = "ios", target_os = "android"))]
-    fn resolve_fingerprint<R: Runtime>(app: &AppHandle<R>) -> Result<String> {
-        let path = Self::fingerprint_path(app)?;
-        if path.exists() {
-            let id = fs::read_to_string(&path)?;
-            let id = id.trim().to_string();
-            if !id.is_empty() {
-                return Ok(id);
+        match entry.get_password() {
+            Ok(id) => {
+                let id = id.trim().to_string();
+                if !id.is_empty() {
+                    return Ok(id);
+                }
             }
+            Err(keyring_core::Error::NoEntry) => {}
+            Err(e) => return Err(Error::ParseErr(format!("keyring read: {e}"))),
         }
-        let id = uuid::Uuid::new_v4().to_string();
-        let mut f = File::create(&path)?;
-        f.write_all(id.as_bytes())?;
-        Ok(id)
-    }
 
-    #[cfg(any(target_os = "ios", target_os = "android"))]
-    fn fingerprint_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
-        let Ok(data_dir) = app.path().app_data_dir() else {
-            return Err(Error::PathErr("Can't resolve app data dir".into()));
-        };
-        let cache_dir = data_dir.join("keygen");
-        if !cache_dir.exists() {
-            fs::create_dir_all(&cache_dir)?;
-        }
-        Ok(cache_dir.join("fingerprint"))
+        let id = uuid::Uuid::new_v4().to_string();
+        entry
+            .set_password(&id)
+            .map_err(|e| Error::ParseErr(format!("keyring write: {e}")))?;
+        Ok(id)
     }
 
     pub(crate) async fn activate(

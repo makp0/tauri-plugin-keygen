@@ -1716,6 +1716,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyring-core"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4334ce6f52997b27cdf93ff93e9b7dc585ddcb377006154fb2f6a695c40c53d6"
+dependencies = [
+ "log",
+]
+
+[[package]]
 name = "kuchikiki"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1811,16 +1820,6 @@ name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
-
-[[package]]
-name = "machine-uid"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c4506fa0abb0a2ea93f5862f55973da0a662d2ad0e98f337a1c5aac657f0892"
-dependencies = [
- "libc",
- "winreg",
-]
 
 [[package]]
 name = "malloc_buf"
@@ -3592,7 +3591,7 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "hex",
- "machine-uid",
+ "keyring-core",
  "reqwest",
  "serde",
  "serde_json",

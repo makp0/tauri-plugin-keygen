@@ -30,9 +30,7 @@ chrono = "0.4.31"
 aes-gcm = "0.9"
 tauri-plugin-os = "2.0.1"
 uuid = { version = "1", features = ["v4"] }
-
-[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
-machine-uid = "0.5.1"
+keyring-core = "0.5.0"
 
 [build-dependencies]
 tauri-plugin = { version = "2.0.1", features = ["build"] }

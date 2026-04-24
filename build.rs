@@ -6,6 +6,7 @@ const COMMANDS: &[&str] = &[
     "checkout_machine",
     "reset_license",
     "reset_license_key",
+    "get_fingerprint",
 ];
 
 fn main() {

@@ -146,3 +146,16 @@ pub async fn reset_license_key<R: Runtime>(app: AppHandle<R>, _window: Window<R>
     LicensedState::remove_cached_license_key(&app)?;
     Ok(())
 }
+
+/// Return the plugin's persisted machine fingerprint. Useful for applications
+/// that need to issue their own authenticated calls to the Keygen API (for
+/// example, to delete the current machine when deactivating).
+#[command]
+pub async fn get_fingerprint<R: Runtime>(
+    _app: AppHandle<R>,
+    _window: Window<R>,
+    machine: State<'_, Mutex<Machine>>,
+) -> Result<String> {
+    let machine = machine.lock().await;
+    Ok(machine.fingerprint.clone())
+}

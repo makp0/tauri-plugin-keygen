@@ -8,4 +8,5 @@ permissions = [
     "allow-reset-license",
     "allow-reset-license-key",
     "allow-validate-key",
+    "allow-get-fingerprint",
 ]

@@ -9,6 +9,7 @@ Default permissions for the plugin
 - `allow-reset-license`
 - `allow-reset-license-key`
 - `allow-validate-key`
+- `allow-get-fingerprint`
 
 ## Permission Table
 
@@ -67,6 +68,32 @@ Enables the checkout_machine command without any pre-configured scope.
 <td>
 
 Denies the checkout_machine command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`keygen:allow-get-fingerprint`
+
+</td>
+<td>
+
+Enables the get_fingerprint command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`keygen:deny-get-fingerprint`
+
+</td>
+<td>
+
+Denies the get_fingerprint command without any pre-configured scope.
 
 </td>
 </tr>
