@@ -23,16 +23,14 @@ use std::{
 use tauri::{webview_version, AppHandle, Manager, Runtime};
 use types::{MachineFileRes, MachineLicense};
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "android"
-))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios"))]
 static ENGINE_NAME: &str = "WebKit";
 
 #[cfg(target_os = "windows")]
 static ENGINE_NAME: &str = "WebView2";
+
+#[cfg(target_os = "android")]
+static ENGINE_NAME: &str = "Chrome";
 
 #[derive(Debug)]
 pub struct Machine {
